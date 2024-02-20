@@ -1,0 +1,49 @@
+Variant Calling using BCFTOOLS - Germline Variant Calling
+DOwload the paired end sequence reads which will be trimmed as a form of quality control and then the trimmed reads will be mapped to a reference genome and after the mapping a sam file will be generated and the sam file will be converted to a bam file and then the bam file will be sorted and then use bcftools mpileup command to generate the coverage information for all the bases, and after that call the variant using the bcf tool and perform post vcf analysis. Install the BCF tool using anaconda. Start adding the channels, and then run the command to install the tools required for the variant calling. Indicate the environment variants and test some of the tools. Then download the data for mycobacterium ulcerans and use the Illumina reads with the accession number ERR3335404. Go to https://trace.ncbi.nlm.nih.gov/Traces/sra/?run=ERR3335404 and then on the page click on Data access and look at the link next to EBI and copy the link. Next download the reference genome which is available on NCBI and make sure you select the FASTA file, and then display the first 5 lines in the fasta file. Next perform trimming with the assumption that the trimming improves the quality and for that use  a tool called sickle. In the terminal command q is used for quality and l for length, g means to compress the files that will be generated. After the files ave been trimmed three new files will be created. Next perform genome mapping and it can be done by aligning the reads to a reference genome. The purpose of the mapping is to identify regions or locations in the reference genome where the reads map uniquely to or where is the best match for the reads. The information we get from the genome mapping will then be used by the variant callers to identify variants, and then we also get to know the position or the region where these variants can be identified. There are lots of tools that perform the genome mapping but for this one we will use the Burrows - Wheeler Aligner and the information can be found on https:??bio-bwa.sourceforge.net. Before we perform the mapping, it is important to perform an indexing of the reference genome. Indexing helps programs to do a faster lookup of the sequence. For the indexing use bwa. Before the indexing re-organize the files. After indexing has been completed, perform the mapping where t indicates the number of traits and specify the reference genome and then specify the trimmed reads and the output file which it will be in a sam format. The sam files are usually large, so compress them to a bam file and for that use samtools and specify the input file being the sam and the output file being the bam. Then check the size for the bam and sam file. Next sort the bam file. Whenever you perform a genome mapping, it is important to perform the statistics of the mapping and there is a page that provides more information www.htslib.org/doc/samtools-view.html . After you get the stats, 566095 indicates the total number of reads and 502161 indicates the total number of reads mapped to the reference genome. In terms of percentage 88.71% of the reads mapped to the reference genome. Next use the bcf tools to calculate the genotype likelihood and after that we do the variant calling. In this case because we are dealing with a bacterial genome, we will be having a haploid so indicate a 1 for the ploidy. Once we have the vcf filw, perform the post vcf task and the number of variants is 32682. Further, look at the SNPs and the indels. There is a total of 31021 SNPs and a total of 1661 indels. You can also check the positions where the variants are identified and that will give you a list of the position numbers.
+
+ishegani:$ conda config --add channels conda-forge
+ishegani:$ conda config --add channels bioconda
+ishegani:$ conda config --show channels
+ishegani:$ conda create -n variants bwa bcftools samtools sickle python biopython
+ishegani:$ conda activate variants
+(variants) ishegani:$ bwa
+(variants) ishegani:$ bcftools
+(variants) ishegani:$ mkdir project
+(variants) ishegani:$ cd project/
+(variants) ishegani:$ wget http://ftp.sra.ebi.ac.uk/vol1/run/ERR3335404/P7741_R1.fastq.gz
+(variants) ishegani:$ wget http://ftp.sra.ebi.ac.uk/vol1/run/ERR3335404/P7741_R2.fastq.gz
+(variants) ishegani:$ python
+>>> from Bio import Entrez,SeqIO
+>>> Entrez.email='shegani.i@northeastern.edu'
+>>> handle=Entrez.efetch(db='nuccore',id='CP000325.1',rettype='fasta',retmode='text')
+>>> record=SeqIO.read(handle, 'fasta')
+>>> SeqIO.write(record, 'Agy99.fasta','fasta')
+>>> quit()
+(variants) ishegani:$ head -n 5 Agy99.fasta
+(variants) ishegani:$ sickle
+(variants) ishegani:$ sickle pe
+(variants) ishegani:$ sickle pe -f P7741_R1.fastq.gz -r P7741_R2.fastq.gz -t sanger -q 20 -l 20 -g -o trimmed_R1.fastq.gz -p trimmed_R2.fastq.gz -s trimmed_S.fastq.gz
+(variants) ishegani:$ ls
+Agy99.fasta P7741_R2.fastq.gz trimmed_R2.fastq.gz P7741_R1.fastq.gz trimmed_R1.fastq.gz trimmed_S.fastq.gz
+(variants) ishegani:$ mkdir ref
+(variants) ishegani:$ mv Agy99.fasta ref/
+(variants) ishegani:$ bwa index ref/Agy99.fasta
+(variants) ishegani:$ ls ref
+Agy99.fasta Agy99.fasta.ann Agy99.fasta.pac Agy99.fasta.amb Agy99.fasta.bwt Agy99.fasta.sa
+(variants) ishegani:$ bwa mem -t 8 ref/Agy99.fasta trimmed_R1.fastq.gz trimmed_R2.fastq.gz > output.sam
+(variants) ishegani:$ ls
+P7741_R1.fastq.gz output.sam trimmed_R1.fastq.gz trimmed_S.fastq.gz P7741_R2.fastq.gz ref trimmed_R2.fastq.gz
+(variants) ishegani:$ samtools view -S -b output.sam > output.bam
+(variants) ishegani:$ ls
+P7741_R1.fastq.gz output.bam ref ref trimmed_R2.fastq.gz P7741_R2.fastq.gz output.sam trimmed_R1.fastq.gz trimmed_S.fastq.gz 
+(variants) ishegani:$ du -sh output.bam
+(variants) ishegani:$ du -sh output.sam
+(variants) ishegani:$ samtools sort -o output.sorted.bam output.bam
+(variants) ishegani:$ samtools flagstat output.sorted.bam > mappingstats.txt
+(variants) ishegani:$ cat mappingstats.txt
+(variants) ishegani:$ bcftools mpileup -O b -o raw.bcf -f ref/Agy99.fasta --threads 8 -q 20 -Q 30 output.sorted.bam
+(variants) ishegani:$ bcftools call --ploidy 1 -m -v -o variants.raw.vcf raw.bcf
+(variants) ishegani:$ grep -v -c '^#' variants.raw.vcf
+(variants) ishegani:$ bcftools view -v snps variants.raw.vcf | grep -v -c '^#'
+(variants) ishegani:$ bcftools view -v indels variants.raw.vcf | grep -v -c '^#'
+(variants) ishegani:$ bcftools query -f '%POS\n' variants.raw.vcf > pos.txt
