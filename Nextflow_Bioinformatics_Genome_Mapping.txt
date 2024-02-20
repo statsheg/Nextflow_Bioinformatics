@@ -1,0 +1,43 @@
+Nextflow for Bioinformatics - Writing a Nextflow script for Genome Mapping with BWA
+Write a nextflow script to perform genome mapping with BWA. Install nextflow, bwa, and samtools. Next downloada the files for which you will need the fastq file raw reads and the reference sequence. To get the fastq reads, visit the ENA database and enter the accession id ERR3335404 and that represents the mycobacterium ulcerans. For this project get the illumina paired end reads P7741_R1.fastq.gz and P7741_R2.fastq.gz. Copy the links and download them to the terminal. Then put the files in the directory. Do an ls into fastq and the files will be in that directory. We need the reference sequence for mycobacterium ulcerans and that can be found on https://www.ncbi.nlm.nih.gov and look up Mycobacterium ulcerans Agy99, complete genome. Click on Send to and then go to File, and then click on FASTA and then click on Create File and save it on the directory called ref and then I will rename it to Agy99.fasta and save it. Next, we need to index the reference sequence. So, run the command on the terminal, and then ls into ref which will show additional files after the indexing. Ideally we should have included the command in the nextflow script, however the focus is to show how to perform the mapping itself. Ideally you should also perform quality control which will help you identify possible issues you can resolve. Quality control involves assessing the quality and it also involves trimming, so you can trim adapters. In the nextflow script define the parameters for the directory, the reference file, and the paired end read files. In the nextflow script specify the directory where the output should be received, so first state it in the parameters section. Then define the process. First publish the directory and then supply three inputs to the process. So, the first one index_dir is a placeholder for the directory, the next one is val ref and represents the name of the reference sequence, and the third input tuple gets the sample names. Next supply the output and then the commands in the script for the mapping process and this command will generate a sam file which should be converted to a bam file with samtools. And then we would need to call map and create channels in the workflow which will supply the process mapping with the information. 
+
+ishegani:$ mkdir nextflow
+ishegani: cd nextflow/
+ishegani:$ wget ftp://ftp.sra.ebi.ac.uk/vol1/run/ERR333/ERR3335404/P7741_R1.fastq.gz
+ishegani:$ wget ftp://ftp.sra.ebi.ac.uk/vol1/run/ERR333/ERR3335404/P7741_R2.fastq.gz
+ishegani:$ mkdir fastq
+ishegani:$ mv *.fastq.gz fastq/
+ishegani:$ bwa index ref/Agy99.fasta
+ishegani:$ realpath ref/
+/home/ishegani/nextflow/ref
+ishegani:$ nano pipeline.nf
+params.index_dir="home/ishegani/nextflow/ref"
+params.ref="Agy99.fasta"
+params.fastq="/home/ishegani/nextflow/fastq/*_{R1,R2}*"
+params.bam_dir="/home/ishegani/nextflow/BAM"
+process mapping {
+publishDir("${params.bam_dir}", mode: 'copy')
+input:
+ pathr index_dir
+ val ref
+ tuple val(sample_id), path(fastq)
+output:
+ path "*"
+script:
+"""
+bwa mem ${index_dir}/${ref}  ${fastq}  | samtools view -h -b -o ${sample_id}.bam -
+"""
+}
+workflow {
+index_ch=Channel.fromPath(params.index_dir)
+ref_ch=Channel.of(params.ref)
+fastq_ch=Channel.fromFilePairs(params.fastq)
+mapping(index_ch, ref_ch, fastq_ch)
+mapping.out.view()
+}
+shegani.i:$ nextflow run pipeline.nf
+
+
+
+
+
