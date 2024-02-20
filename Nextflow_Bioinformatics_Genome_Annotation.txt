@@ -1,0 +1,71 @@
+Nextflow for Bioinformatics - Genome Annotation with PROKKA
+The script below will allow the anotation of the genome with the prokka tool. First create an environment for the annotation with either mamba or conda and specify channels, and then specify the tool with nextflow. Then list the version and the list of databases of prokka in the system. Now, download the data with wget and unzip it and 5 fasta files will display and placed in the same directory as the zip file. So, create another directory and move the fasta files. Build the nextflow script that will take each of the 5 fasta files and annotate the sequence. With nextflow automate and scale the project. First state the paramaters with the first one being the fasta sequences and then define the process. State publishDir which will be used to create a directory where the output files will be saved. The files will be generated in nextflow default directory and a copy of it will be saved in the new directory. Then define the input and the output and give the commands to the script inside the process where you specify the kingdom. Prokka assumes that it is a bacteria, however it can be changed. Next create the workflow where you can specify the inputs through the channels. More on the channels by going to https://training.nextflow.io/basic_training/channels/ . Then run the nextflow script and look at the output files and there is a total 12 output files for each fasta file. Go to the directory and look at the files. For example open the tsv file in a spreadsheet and look at the features. There are no genes, so go back and add the gene features by re-running prokka. The predicted genes should be added to the output.
+
+ishegani:$ mamba create -n annotation -c bioconda -c conda-forge -c defaults nextflow prokka
+ishegani:$ conda activate annotation
+(annotation) ishegani:$ nextflow
+(annotation) ishegani:$ prokka --version
+prokka 1.14.6
+(annotation) ishegani:$ prokka --listdb    
+(annotation) ishegani:$ mkdir genome_annotation
+(annotation) ishegani:$ cd genome_annotation/
+(annotation) ishegani:$ wget https://github.com/ishegani/bioinfodata/raw/main/FASTA/sequences_2_2024.zip
+(annotation) ishegani:$ unzip sequences_2_2024.zip
+(annotation) ishegani:$ mkdir sequences
+(annotation) ishegani:$ mv *.fasta sequences
+(annotation) ishegani:$ ls sequences/*.fasta
+(annotation) ishegani:$ nano annotate.nf
+
+*/defining the location to the sequences/contigs*/
+params.sequences='sequences/*.fasta'
+process annotate {
+publishDir("ANNOTATION", mode: 'copy')
+input:
+ path contigfile
+output:
+ path "*"
+script:
+"""
+prokka --kingdom Bacteria --prefix ${contigfile.simpleName} --outdir ${contigfile.simpleName} ${contigfile}
+"""
+}
+
+workflow {
+sequence_ch=Channel.fromPath(params.sequences)
+annotate(sequence_ch)
+}
+
+(annotation) ishegani:$ nextflow run annotate.nf
+(annotation) ishegani:$ ls ANNOTATION/
+(annotation) ishegani:$ ls ANNOTATION/M48/
+So remove the default and the new directory and re-run nextflow after the gene features have been added and it will show the ftype column with the information if it is a gene, CDS (forward strand, reverse strand), tRNA, rRNA, tmRNA, or repeat_reg.
+
+(annotation) ishegani:$ rm -r ANNOTATION 
+(annotation) ishegani:$ nextflow clean -f 
+(annotation) ishegani:$ nano annotate.nf
+
+*/defining the location to the sequences/contigs*/
+params.sequences='sequences/*.fasta'
+process annotate {
+tag "${contigfile}"
+publishDir("ANNOTATION", mode: 'copy')
+input:
+ path contigfile
+output:
+ path "*"
+script:
+"""
+prokka --addgenes --kingdom Bacteria --prefix ${contigfile.simpleName} --outdir ${contigfile.simpleName} ${contigfile}
+"""
+}
+
+workflow {
+sequence_ch=Channel.fromPath(params.sequences)
+annotate(sequence_ch).view()
+}
+
+(annotation) ishegani:$ nextflow run annotate.nf
+(annotation) ishegani:$ nextflow clean -f 
+
+
+
