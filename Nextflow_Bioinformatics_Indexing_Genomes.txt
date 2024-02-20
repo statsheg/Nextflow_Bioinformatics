@@ -1,0 +1,147 @@
+Nexflow for Bioinformatics - Indexing a Reference Genome
+If you are going to perform genome mapping, if you are going to do variant calling, one of the things that you will do is to index the reference genome. 
+So the following will show how to write a nextflow script to do this. For this script install NextFlow and BWA. So we will use them to index our reference sequence.
+Go to the NCBI page and download an example data file. Go to https://www.ncbi.nlm.nih.gov
+Download the data for mycobacteriuk ulcerans Agy99, complete genome. We are using this file because it is small. Go to Send to, Choose Complete Record and Choose File, for the Format select FASTA and then click on create file. Create a directory and save the file in it. The name of the file will be Agy99.fasta.
+Now open the terminal and proceed with the activity. Now cd to the directory that has the file. cd nextflow/ and then do an ls and it will display the file. Create a directory by the name ref and move the file to the directory. mkdir ref and mv Agy99.fasta ref/
+And then ls and it will display the directory, and then ls ref/ and it will display the name of the file.
+To get the path enter the following in the terminal: realpath ref/Agy99.fasta and you get /home/ishegani/nextflow/ref/Agy99.fasta or to get the path you can do a cd ref and then pwd to get the path and then add the name of the fil.
+Use nano to open the file where the script will be written to. nano script1.nf
+In the script we will specify a parameter and we can say params.ref="get /home/ishegani/nextflow/ref/Agy99.fasta" , therefore this would be the parameter for the reference sequence. So now we are going to create the process. In the process in between the """ """ put the command. In the command, say bwa index for the sequence, and then you need to specify the reference sequence. So the genome in the code is the place holder for the params.ref. Next to bwa index you can either have $genome or ${genome}. Now if we are going to use a process, and we are also going to use an input file, then you also need to add channels. So, channels allow us to dirct the information. So, that will come in the workflow. So, with nexflow the current version I am using, we are supposed to use the command to run the text, even though we have defined them in the process we need to run them. So, just like in Python. If you define a function you need to call it. So the workflow comes in to call the function.
+So we provide the curly brackets to the workflow and in it we will define a channel. So, this channel will link the input file to the process. So we have defined the inputes and we will specify them in the workflow. For the channel, there is a separate tutorial. Whatever is saved in the ref_ch variable inside the workflow will be redirected to the process.
+
+params.ref="/home/ishegani/nextflow/ref/Agy99.fasta"
+process index {
+input:
+ path genome
+script:
+"""
+bwa index $genome
+"""
+}
+workflow {
+ref_ch = Channel.fromPath(params.ref)
+index(ref_ch)
+}
+
+So, this is the initial script we have written, save the changes and save it with Ctrl + S, and then if you do an ls you will find script1.nf. Then execute the script:
+ishegani:$ nextflow run script.nf
+Okay so nextflow has completed its work. ls and it will show the ref directory. Now, with bwa if you are indexing a sequence enter the following command in the terminal to make sure that there are no errors.
+ishegani:$ bwa index ref/Agy99.fasta
+To capture the bwa output in nextflow specify the log name in the command that shows in the square bracket after you run nextflow. So the output goes to the stderr file
+ishegani:$ nextflow log maniac_shaw -f stderr
+Now, we have performed the indexing and let's do an ls and that will show the directory ref and the script file script1.nf. And then lets go inside the ref directory by typing in the terminal ls ref/
+We have performed the indexing of the files, so we have saved them in the same directory as the reference sequence file itself. The names of the new files are Agy99.fasta.amb ; Agy99.fasta.ann ; Agy99.fasta.bwt ; Agy99.fasta.pac ; Agy99.fasta.sa.
+Now lets make a copy of the script1 file and name it script2. ishegani:$ cp script1.nf script2.nf
+So I will add something else to the script file. So because we are going to specify a directory where the output file should be, I will define that also. And then go to the process and edit it. Because we are specifying the directory, we also have to specify the output. So the * in the script means that we want to access all the outputs that are generated. So, once we have these settings we can have the index files stored in the directory of interest. The workflow will not change. So, exit and save changes.
+
+ishegani:$ nano script2.nf
+params.ref="/home/ishegani/nextflow/ref/Agy99.fasta"
+params.index_dir= "/home/ishegani/nextflow/index_dir"
+process index {
+publishDir("${params.index_dir}", mode: 'copy')
+input:
+ path genome
+output:
+ path "*"
+script:
+"""
+bwa index $genome
+"""
+}
+workflow {
+ref_ch = Channel.fromPath(params.ref)
+index(ref_ch)
+}
+
+ishegani:$ nextflow run script2.nf
+So nextflow has completed its work and then do an ls and the new directory with the output files by the name index_dir will display and then ls index_dir/ will show all the outputs. The original fasta file is located in the ref directory. Ideally, we would have the fasta and the output files in one directory. Go to script2 and make changes to it. 
+
+ishegani:$ nano script2.nf
+params.ref="/home/ishegani/nextflow/ref/Agy99.fasta"            
+params.index_dir="/home/ishegani/nextflow/ref" 
+process index {
+publishDir("${params.index_dir}", mode: 'copy')
+input:
+ path genome
+output:
+ path "*"
+script:
+"""
+bwa index $genome
+"""
+}
+workflow {
+ref_ch = Channel.fromPath(params.ref)
+index(ref_ch)
+}
+
+And then rerun nextflow. nextflow run script2.nf. And then ls ref/ will display the output and the fasta file. So, now we have been able to streamline everything and we have them all in one directory.
+In some cases you might need to view the files. So copy the script to a new one.
+ishegani:$ cp script2.nf script3.nf . Remove the index directory with rm - fr index_dir
+In the new script I will redirect the index files to the index_dir again and I will also display the outputs. You can still leave them in the ref and it will be just fine. In the workflow add a new command. So the new command will display the output files. The output files have already been declared in the process under output
+
+nano script3.nf
+params.ref="/home/ishegani/nextflow/ref/Agy99.fasta"            
+params.index_dir="/home/ishegani/nextflow/index_dir" 
+process index {
+publishDir("${params.index_dir}", mode: 'copy')
+input:
+ path genome
+output:
+ path "*"
+script:
+"""
+bwa index $genome
+"""
+}
+workflow {
+ref_ch = Channel.fromPath(params.ref)
+index(ref_ch)
+index.out.view()
+}
+
+Exit out of this file, save changes, and run nextflow. nextflow run script3.nf and the file names will be displayed with the rest of the information. You can also display just a single file. Let's assume that we want to display just the bwt file. Make sure to change the mode to 'move' so that the files show to the index directory.
+So, remove the index_dir again, rm - fr index_dir and then copy, cp script3.nf script4.nf and edit it. The variable name ref_genome will be assigned to the bwt file, and this file will be saved in publishDir because this is the file of interest. Then in the workflow you change the index.out.view to index.out.ref_genome.view()
+
+nano script4.nf
+params.ref="/home/ishegani/nextflow/ref/Agy99.fasta"            
+params.index_dir="/home/ishegani/nextflow/index_dir" 
+process index {
+publishDir("${params.index_dir}", mode: 'copy')
+input:
+ path genome
+output:
+ path "${genome}.bwt" ,  emit: ref_genome
+script:
+"""
+bwa index $genome
+"""
+}
+workflow {
+ref_ch = Channel.fromPath(params.ref)
+index(ref_ch)
+index.out.ref_genome.view()
+}
+
+Then do an ls and run nextflow with the command nextflow run script4.nf. The file that displays is saved in the default directory. If you want the file to be sotred in a particular directory then you use the emit function. Because we are indexing here we would still need access to all the files.
+
+ishegani:$ cat script3.nf
+params.ref="/home/ishegani/nextflow/ref/Agy99.fasta"            
+params.index_dir="/home/ishegani/nextflow/index_dir" 
+process index {
+publishDir("${params.index_dir}", mode: 'copy')
+input:
+ path genome
+output:
+ path "*"
+script:
+"""
+bwa index $genome
+"""
+}
+workflow {
+ref_ch = Channel.fromPath(params.ref)
+index(ref_ch)
+index.out.view()
+}
