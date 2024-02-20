@@ -1,0 +1,57 @@
+Nextflow for Bioinformatics - Quality Control with FastQC
+Write a nextflow script to perform quality control with fastqc. Then go to the ENA database and download the data. The accession id would be ERR3335404 and then click view which will send you to the data for the mycobacterium ulcerans. So for this script I will use the data P7741_R1.fastq.gz and P7741_R2.fastq.gz. So, right click to these files and copy the link. Go to the terminal and download the files with wget and ls. Repeat the task for the second read. Place the two files in a new directory. So, if I do an ls I have my fastq directory, and then I will ls into it with ls fastq/. Go to the nexflow tutorial https://www.nextflow.io/docs/latest/dsl2.html  where it shows the default for the version of nextflow to be DSL 2.
+Start writing the script by first setting the parameters. One parameter will make available the fastq files and the other is a directory that will be used to save the output files. State the process and in bwtween the curly brackets state the commands. The fastq in the input will be a placeholder for theincoming fastq files. The move to the next line for the output and all the files that will generated, and then have a script line where you give the commands. So, now we have defined our process and need to call it. So use the workflow to call it where you would need to use a channel to supply the process with inputs and then call the process named QC. Then save the changes and run the nextflow script.
+
+ishegani:$ mkdir nextflow
+ishegani:$ cd nextflow/
+ishegani:$ wget ftp://ftp.sra.ebi.ac.uk/vol1/run/ERR333/ERR3335404/P7741_R1.fastq.gz
+ishegani:$ wget ftp://ftp.sra.ebi.ac.uk/vol1/run/ERR333/ERR3335404/P7741_R2.fastq.gz
+ishegani:$ mkdir fastq
+ishegani:$ mv *.fastq.gz fasta/
+ishegani:$ realpath fastq/
+/home/ishegani/nextflow/fastq
+ishegani:$ nano pipeline.nf
+params.fastq="/home/ishegani/nextflow/fastq/*.fastq.gz"
+process QC   {
+input: 
+ path fastq
+output:
+ path "*"
+script:
+"""
+fastqc $fastq
+"""
+}
+workflow {
+fastq_ch=Channel.fromPath(params.fastq)
+QC(fastq_ch)
+QC.out.view()
+}
+
+ishegani:$ nextflow run pipeline.nf
+Mdify the script again and then specify an output directory. Make a copy of the original script and change its name. So, specify the output directory in the parameters section. Then move to the process QC and specify the publish directory. Use the copy mode not the move mode so that you have two copies of the output files. Exit and save canges and run the nextflow script. The outputs will show the html files and the fastqc.zip.
+
+ishegani:$ cp pipeline.nf pipeline2.nf
+ishegani:$ nano pipeline2.nf
+params.fastq="/home/ishegani/nextflow/fastq/*.fastq.gz"
+params.qc_report="/home/ishegani/nextflow/fastqc_report"
+process QC   {
+publishDir("${params.qc_report}" , mode: 'copy')
+input: 
+ path fastq
+output:
+ path "*"
+script:
+"""
+fastqc $fastq
+"""
+}
+workflow {
+fastq_ch=Channel.fromPath(params.fastq)
+QC(fastq_ch)
+QC.out.view()
+}
+ishegani:$ nextflow run pipeline2.nf
+
+
+
