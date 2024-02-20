@@ -1,0 +1,83 @@
+Nextflow for Bioinformatics Genome Assembly with SPADES chromosome Illumina Paired
+Write a nextflow script to perform genoe assembly. For the genome assembly use the tool SPAdes, for the mode use chromosome. With SPAdes you can assemble plasmids or a chromosome. We will have it in a chromosome mode. For the data, we will use the illumina paired reads and download them. For sequence type it will be Whole Genome Sequencing.
+Open the terminal and start programming. First create a working directory. 
+ishegani:$ mkdir nextflow, and then change directory with the command cd nextflow/
+In this directory if you have multiple nextflow projects, you can create another directory called genome assembly. First download the data by going to the ENA page https://www.ebi.ac.uk/ena/browse/home  Once you have the accession ID enter it and then click on view and that will send you to the page and the organism would be mycobacterium ulcerans. We have paired end reads and there is also nanopore data, however we are using the Illmina Paired End reads. So, get the first FASTQ file. ERR3335404_1.fastq.gz , right click and copy the link, and then move to the terminal to download. lso copy the file below the first file by right clicking and click copy link, and then paste it.
+ishegani:$ nano links.txt
+In the text file paste the following link.
+ftp://ftp.sra.ebi.ac.uk/vol1/fastq/ERR333/004/ERR3335404/ERR3335404_1.fastq.gz
+ftp://ftp.sra.ebi.ac.uk/vol1/fastq/ERR333/004/ERR3335404/ERR3335404_2.fastq.gz
+Now you can do a cat links.txt to see the content of the text file. So, now write a nextflow script that would download the files for us. So, nextflow script would take the text file with the linkas and process the text file for us. Take a note of your working directory, so do a pwd and it states /home/ishegani/nextflow. We need this information before start writing our script so do that first. Now, we are going to write the nextflow scripts to download the links in the file. So create a new file and put the nextflow commands. So start by defining the parameters. One paramater specifies the text file with the links and the other specifies a directory where the downloaded files will be stored. With nextflow , if you are going to perform an activity you need to put it in a process. So, because we are going to download files we will define the task as download. So, in between the curly rackets place the commands. The commands will work together to get us the files. In the process we will define the directory fastq in which the downloaded files will be stored. Remember that nextflow has a default directory. So, what we are doing here is that we are telling nextflow that fastq is the directory that we want the outputs to be saved. The mode is copy so it means that we want the output files to be stored in the fastq directory. There are different modes. One of the modes is move and that is not reccommended. The input line is defining the input, what we are going to place in the process. The linkfile is stated in the parameters and you also need to do additional definition. So the linkfile in the process is a placeholder for the inputs. You can use other names for the input and it would still hold the linkfile defined in the parameters section. Next define the output. So the emit functionality in the output section makes the outputfile accessible outside the download process, and it has also made possible for us to make reference to that file. So, in the process when we want to make reference to the particular outputfile which is simply a name for the output file, it is also a placeholder for the output files. In the next line define the script and define the commands that will allow us to download the files. xargs will allow us to process multiple files. The next thing would be to specify the workflow and this would be used to call the process that you want to run. So, with nextflow we supply input to processes by using what we call channels. So, channels allow us to communicate information, to supply information to processes. So, we need to create a channel for input file that we supply to the process download. So after we define the channel, we can now call the process download and supply the input which is in the channel. We also need to know what is happening in terms of the outputs. So, I will enter another command to display the output files.
+ishegani:$ nano pipeline.nf. 
+params.linkfile="home/ishegani/nextflow/links.txt"
+params.fastqdir="/home'ishegani/nextflow/fastq"
+process download {
+publishDir("${params.fastqdir}" ,  mode: 'copy')
+input:
+ path linkfile
+output:
+ path "*" , emit: outputfile
+script:
+"""
+cat $linkfile | xargs -i -P 2 wget '{}'
+"""
+}
+workflow {
+link_ch=Channel.fromPath(params.linkfile)
+download(link_ch)
+download.out.outputfile.view()
+}
+Exit and save changes, and then run nextflow. So a cat ishegani:$ nano pipeline.nf.  will display the script's content. Now run the script. ishegani:$ nextflow run pipeline.nf 
+Do an ls and the fastq directory will appear and then ls fastq/ will show the names of the files that got downloaded. So now we are done with the fastq files, we have them in the directory. Now, we are going to perform a genome assembly. If you have the fastq files it is important to perform quality control, and this will allow you to identify possible issues so that you can correct them and then you would have removed low quality if you identify those issues and then you can use it for analysis. So, removing the low quality reads also saves you time when you are analyzing the data. So, it is always important to perform the quality control. However here it is going to be skipped because the focus here is to show how to use nextflow to perform genome assembly. Even though this is showing the script for genome assembly, the step before the assembly should have been the quality control in which you perform the read trimming and filtering.
+Write the nextflow script to perform the genome assembly and the fastq files will be our input. We already have nextflow installed and so we should make sure that we have SPAdes installed. So, first get a path for both fastq files.
+ishegani:$ realpath fastq/ERR3335404_1.fastq.gz 
+/home/ishegani/nextflow/fastq/ERR3335404_1.fastq.gz
+Alternatively you can enter pwd. So in the pipeline file I will add two more parameters, read1 and read2. Add another paramater and this is where we will be the directory where we will place the SPAdes output files. So now I will add another process for the assembly, and publish the directory which means that the SPAdes output will be saved in the directory. Then we have to define the inputs for this process, and then the outputs, then specify the spades command inside the script. Now with spades, you also have to specify the directory.
+ishegani:$ nano pipeline.nf
+params.linkfile="home/ishegani/nextflow/links.txt"
+params.fastqdir="/home'ishegani/nextflow/fastq"
+params.read1="/home/ishegani/nextflow/fastq/ERR3335404_1.fastq.gz"
+params.read2="/home/ishegani/nextflow/fastq/ERR3335404_2.fastq.gz
+params.SPADES_OUTPUT="/home/ishegani/nextflow/SPADES_OUTPUT"
+process download {
+publishDir("${params.fastqdir}" ,  mode: 'copy')
+input:
+ path linkfile
+output:
+ path "*" , emit: outputfile
+script:
+"""
+cat $linkfile | xargs -i -P 2 wget '{}'
+"""
+}
+process assemble {
+publishDir("${params.SPADES_OUTPUT}" , mode: 'copy' )
+input:
+ path read1
+ path read2
+output:
+ path "*" , emit: spades_output
+script:
+"""
+echo ${read1.simpleName} | cut -d'_' -f1 | xargs-i spades.py --careful -1 $read1 - 2 $read2 -o '{}'
+"""
+}
+workflow {
+/*
+link_ch=Channel.fromPath(params.linkfile)
+download(link_ch)
+download.out.outputfile.view()
+*/
+read1_ch=Channel.fromPath(params.read1)
+read2_ch=Channel.fromPath(params.read2)
+assemble(read1_ch,read2_ch)
+assemble.out.spades_output.view()
+}
+So go to your terminal, and run the following command and then do an ls and the directory would display, so the command line worked. 
+ishegani:$ spades.py --careful -1 fastq/ERR3335404_1.fastq.gz -2 fastq/ERR3335404_2.fastq.gz -o ERR3335404
+So, to run it in nextflow first remove the directory that you created.
+ishegani:$ rm -fr ERR3335404
+However in nextflow, the command will change slightly. We will use the echo command. Then we need to create a channel that will supply the process read1 and read2. Then move to nextflow where we still have the command for the download of the files, however we do not need them so we comment them out. Alternatively you can decide to remove them completely. So create a channel to supply the process for the input files.
+Then run an ls, and then run nextflow. ishegani:$ nextflow run pipeline.nf
+This activity can take 15 minutes to complete running. ls and the directory SPADES_OUTPUT will display and if you ls into it, you will find the directory for the output file sample ERR3335404, and then ls into it, ls SPADES_OUTPUT/ERR3335404/ and the output files will display.
+
